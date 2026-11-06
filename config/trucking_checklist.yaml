@@ -1,0 +1,219 @@
+# ---------------------------------------------------------------------------
+# Trucking submission checklist  (the ONLY place the line-specific fields live)
+#
+# Adding another insurance line (e.g. general liability) later means adding a
+# sibling file such as config/general_liability_checklist.yaml with the same
+# structure. No Python needs to change. (Not built now - future extension.)
+#
+# Each field has:
+#   key          machine name (used in the DB, the LLM schema and the UI)
+#   label        text shown in the UI
+#   group        used to group questions sensibly in a follow-up draft
+#   ask          phrase used by the template follow-up ("Could you share ...")
+#   description  what counts as "provided"; sent to the LLM as instructions
+#   rules        how the OFFLINE rules baseline finds the field (regex, case-insensitive
+#                by default; use (?-i:...) for a case-sensitive section)
+#                  extractor: regex | states | fleet_size
+#                  patterns          any match  -> status "provided"
+#                  unclear_patterns  any match  -> status "unclear" (mentioned but vague/partial)
+#                  na_patterns       any match  -> status "not_applicable" (checked first)
+#   Tokens <NUM>, <DATE> and anything under "macros" are expanded inside patterns.
+# ---------------------------------------------------------------------------
+line: trucking
+display_name: Commercial trucking
+disclaimer: >
+  This checklist reflects information commonly requested for trucking submissions.
+  It does not represent universal carrier requirements: each carrier or underwriter
+  may ask for different or additional items.
+
+macros:
+  COVERAGE_TERM: '(?:primary liability|auto liability|truckers? liability|general liability|liability|physical damage|motor truck cargo|cargo|trailer interchange|non[- ]trucking(?: liability)?|bobtail|hired (?:and|&) non[- ]owned|umbrella|excess liability|workers[\x27’]? comp(?:ensation)?|occupational accident|reefer breakdown|collision|comprehensive)'
+
+fields:
+  - key: business_legal_name
+    label: Business legal name
+    group: Business details
+    ask: the full legal name of the business
+    description: >
+      The legal or trading name of the trucking business (e.g. "Lone Star Hauling LLC").
+      A personal first name or "my company" alone is NOT a business name.
+    rules:
+      extractor: regex
+      patterns:
+        - '(?-i:\b(?:[A-Z][\w&.-]*[ \t]+){1,4}(?:LLC|L\.L\.C\.|Inc\.?|Corp\.?|Co\.|Ltd\.?|Trucking|Transport|Transportation|Logistics|Freight|Hauling|Express|Carriers|Cartage|Lines|Bros\.?|Brothers)(?:,?\s+(?:LLC|Inc\.?|Corp\.?))?)'
+
+  - key: usdot_mc_number
+    label: USDOT / MC number
+    group: Business details
+    ask: your USDOT number and/or MC number
+    description: >
+      A USDOT number and/or an MC (motor carrier authority) number. "provided" only when the
+      actual number is in the message. Saying "we have a DOT number" without the number is "unclear".
+    value_check: digits
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:US\s?DOT|U\.S\.\s?DOT|DOT)\s*(?:#|number|no\.?|num)?\s*(?:is\s+)?:?\s*\d{5,8}\b'
+        - '\bMC\s*(?:#|number|no\.?)?\s*(?:is\s+)?:?\s*-?\s*\d{5,7}\b'
+      unclear_patterns:
+        - '\b(?:US\s?DOT|USDOT|DOT|MC)\s*(?:#|number|no\.?|:)?\s*(?:is\s+)?-?\s*\d{4}\b(?!\d)'
+        - '\b(?:US\s?DOT|USDOT|DOT|MC)\s*(?:#|number|no\.?|:)\s*(?:is\s+)?-?\s*\d{1,3}\b(?!\d)'
+        - '\b(?:US\s?DOT|USDOT|DOT\s+number|MC\s+number|MC\s+authority|operating authority|our authority)\b'
+
+  - key: operating_states
+    label: Operating states
+    group: Operations
+    ask: the states you operate in
+    description: >
+      The US states the business operates in or hauls through. "Nationwide" or "all over" without
+      specific states is "unclear".
+    value_check: states
+    rules:
+      extractor: states
+
+  - key: radius_of_operation
+    label: Radius of operation
+    group: Operations
+    ask: your typical radius of operation (local, regional or long-haul)
+    description: >
+      How far the trucks typically travel: local, regional, long-haul / over-the-road, or a mileage radius.
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:long[- ]haul|regional|intrastate|interstate|over[- ]the[- ]road|OTR|cross[- ]country|short[- ]haul)\b'
+        - '\blocal\b(?!\s+(?:contractors?|shippers?|business(?:es)?|compan(?:y|ies)|customers?|dealers?|distributors?|farms?|farmers?|plants?|warehouses?|stores?|brokers?|agents?|offices?|authorit\w+|government))'
+        - '\b(?:within|radius of|up to|under|around|about)\s+(?:a\s+)?<NUM>[- ]?(?:miles?|mi)\b'
+        - '\b<NUM>[- ]?mile\s+(?:radius|range)\b'
+      unclear_patterns:
+        - '\b(?:nationwide|all over|everywhere|coast to coast|lower 48)\b'
+
+  - key: commodities_hauled
+    label: Commodities hauled
+    group: Operations
+    ask: what commodities you haul
+    description: >
+      What the business hauls (e.g. produce, steel, general freight, gravel, vehicles).
+      "Various loads" or "whatever pays" is "unclear".
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:(?:haul(?:s|ing)?|carr(?:y|ies|ying)|mov(?:e|es|ing)|transport(?:s|ing)?)\s+)?(?:(?:mostly|mainly|primarily|some)\s+)?(?:general freight|dry van freight|dry goods|produce|groceries|refrigerated (?:food|goods|freight)|frozen (?:food|goods)|steel|lumber|grain|gravel|sand|aggregates?|dirt|asphalt|concrete|building materials|cars|autos|vehicles|cattle|livestock|hay|fuel|petroleum|chemicals|furniture|household goods|packages|parcels|machinery|heavy equipment|pipe|scrap|containers|paper|beverages|appliances|auto parts|electronics|poultry|debris|waste)\b'
+      unclear_patterns:
+        - '\b(?:various|varies|mixed|all kinds of|different kinds of|whatever pays|whatever we can)\b[^.!?\n]{0,25}\b(?:loads?|freight|cargo|commodit\w+|things)\b'
+
+  - key: fleet_size
+    label: Fleet size
+    group: Fleet and drivers
+    ask: how many power units (trucks/tractors) you run
+    description: >
+      The number of trucks / tractors / power units the business operates. A number must be stated.
+      "A few trucks" or "growing fleet" is "unclear".
+    value_check: fleet_count
+    rules:
+      extractor: fleet_size
+
+  - key: vehicle_schedule
+    label: Vehicle schedule (types, years)
+    group: Fleet and drivers
+    ask: a vehicle list with unit types and model years
+    description: >
+      Vehicle types AND model years (e.g. "2019-2022 Freightliner Cascadias"). Types only,
+      without years, is "unclear".
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:19|20)\d{2}\s+(?:[A-Za-z0-9-]+\s+){0,2}?(?:freightliner|peterbilt|kenworth|volvo|international|mack|western star|ford|chevy|chevrolet|isuzu|hino|ram|gmc|dodge|navistar|cascadia|f-?\d{3}|silverado|sprinter|tractors?|trucks?|trailers?|dump|flatbeds?|reefers?|box trucks?)\b'
+        - '\b(?:model years?|years?|models?|built|from)\s+(?:between\s+)?(?:19|20)\d{2}\s*(?:-|to|through|and)\s*(?:19|20)\d{2}'
+        - '\b(?:19|20)\d{2}\s*(?:-|to|through)\s*(?:19|20)\d{2}\s+(?:models?|trucks?|tractors?|units?)'
+        - '\b(?:mostly|mainly|all)\s+(?:19|20)\d{2}s?\b'
+      unclear_patterns:
+        - '\b(?:dump trucks?|box trucks?|flatbeds?|reefers?|day cabs?|sleepers?|tractors?|tractor[- ]trailers?|semis?|pickups?|hotshots?|straight trucks?|tankers?|cargo vans?|sprinter vans?)\b'
+
+  - key: driver_information
+    label: Driver information (count, experience)
+    group: Fleet and drivers
+    ask: the number of drivers and their years of driving experience
+    description: >
+      BOTH the number of drivers AND their experience (years driving / CDL). Only one of the two
+      is "unclear".
+    rules:
+      extractor: regex
+      patterns:
+        - '\b<NUM>\s+(?:[\w-]+\s+){0,3}?drivers?\b[^.!?\n]{0,80}?\b<NUM>\+?\s*(?:years?|yrs?)\b'
+        - '\bdrivers?\s*[:=-]\s*<NUM>\b[^.!?\n]{0,80}?\b<NUM>\+?\s*(?:years?|yrs?)\b'
+        - '\b<NUM>\+?\s*(?:years?|yrs?)\b[^.!?\n]{0,60}?\b(?:driving|experience|CDL|behind the wheel|in trucking)\b[^.!?\n]{0,80}?\b<NUM>\s+(?:[\w-]+\s+){0,3}?drivers?\b'
+      unclear_patterns:
+        - '\b<NUM>\s+(?:[\w-]+\s+){0,3}?drivers?\b'
+        - '\bdrivers?\s*[:=-]\s*<NUM>\b'
+        - '\b<NUM>\+?\s*(?:years?|yrs?)\s+(?:of\s+)?(?:driving|experience|CDL|trucking|in trucking|behind)'
+        - '\b(?:just me|only driver|one driver|myself)\b'
+
+  - key: requested_coverages
+    label: Requested coverages
+    group: Coverage and history
+    ask: which coverages you would like quoted
+    description: >
+      The specific coverages requested (e.g. primary liability, physical damage, cargo). Vague
+      requests like "full coverage" are "unclear".
+    rules:
+      extractor: regex
+      patterns:
+        - '\b<COVERAGE_TERM>(?:\s*(?:,|and|&|/|plus|\+)\s*(?:and\s+)?<COVERAGE_TERM>)*\b'
+      unclear_patterns:
+        - '\b(?:full coverage|the usual|everything we need|standard (?:coverage|package)|whatever (?:is )?required|state minimum|minimum required|required coverage)\b'
+
+  - key: desired_effective_date
+    label: Desired effective date
+    group: Coverage and history
+    ask: the date you would like coverage to start
+    description: >
+      The date the customer wants coverage to begin. "ASAP" or "when my policy expires" without a
+      date is "unclear".
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:effective|starting|starts? on|start date|begin(?:ning)?|coverage to start|bind(?:ing)?|need (?:it |coverage |this |the policy )?(?:in place )?(?:by|on|for))\s*(?:on |by |date |of )?<DATE>'
+        - '\b(?:policy|coverage) (?:needs|has) to (?:start|be (?:in place|active|bound))\s+(?:on|by)?\s*<DATE>'
+      unclear_patterns:
+        - '\b(?:asap|as soon as possible|right away|immediately|when (?:the|our|my) (?:current )?(?:policy|coverage) (?:expires|ends|renews))\b'
+
+  - key: current_prior_coverage
+    label: Current / prior coverage
+    group: Coverage and history
+    ask: who your current insurer is and when the policy expires (or whether you are currently uninsured)
+    description: >
+      Information about current or prior insurance: carrier, policy expiry, or an explicit statement
+      that there is no current coverage.
+    rules:
+      extractor: regex
+      patterns:
+        - '\b(?:currently|presently|now)\s+(?:insured|covered|with|have|carry)\b[^.!?\n]{0,50}'
+        - '\b(?:(?:our|my|the)\s+)?(?:current\s+|existing\s+)?(?:policy|insurance|coverage)\s+(?:is\s+)?(?:with|through|from|expires?|expiring|ends?|renews?|is up|runs? out|lapses?)\b[^.!?\n]{0,50}'
+        - '\b(?:insured|covered)\s+(?:with|through|by)\s+(?:(?-i:[A-Z][\w&.\x27-]*)\s*){1,4}'
+        - '\b(?:current|existing|present|prior|previous)\s+(?:carrier|insurer|insurance|policy|coverage|provider)\b[^.!?\n]{0,50}'
+        - '\b(?:no|without|don\x27t have|do not have|never had|lapsed)\s+(?:any\s+|current\s+|active\s+)?(?:insurance|coverage)\b'
+        - '\b(?:non[- ]?renewed|cancell?ed)\s+(?:us|our|by)\b[^.!?\n]{0,40}'
+
+  - key: loss_runs
+    label: Loss runs (prior claims history)
+    group: Coverage and history
+    ask: your loss runs (prior claims history), ideally for the last 3-5 years
+    description: >
+      Loss runs / prior claims history: either the document, or a clear statement about claims
+      (e.g. "no claims in 3 years"). NOT APPLICABLE for brand-new ventures with no prior insurance
+      history. A bare mention ("loss runs available") or "a few claims" is "unclear".
+    rules:
+      extractor: regex
+      na_patterns:
+        - '\b(?:new (?:venture|authority|company|business|trucking company|carrier)|brand new (?:company|business|authority|to trucking)|just (?:got|received|started|opened|launched)\b[^.!?\n]{0,30}\b(?:authority|business|company|trucking)|starting (?:up )?(?:a |my |our )?(?:new )?(?:trucking )?(?:company|business|authority)|first (?:truck|policy)|never (?:been |had )?insured|no prior (?:insurance|coverage)|newly (?:formed|licensed|authorized))\b'
+      patterns:
+        - '\bloss[- ]?runs?\b[^.!?\n]{0,40}\b(?:attached|enclosed|included|below)\b'
+        - '\b(?:attach\w*|enclos\w*|including|included|sending over|send(?:ing)? you)\b[^.!?\n]{0,30}\bloss[- ]?runs?\b'
+        - '\b(?:no|zero|0|none)\s+(?:at-fault\s+)?(?:claims?|losses|accidents?)\b[^.!?\n]{0,40}'
+        - '\b<NUM>\s+(?:at-fault\s+)?(?:claims?|accidents?|losses)\s+(?:in|over|during|within|for|since)\b[^.!?\n]{0,30}'
+        - '\bclean\s+(?:loss|claims?|driving)\s+(?:history|record|runs)\b'
+        - '\b(?:claims?|accident|loss)[- ]free\b'
+      unclear_patterns:
+        - '\bloss[- ]?runs?\b'
+        - '\b(?:a couple|few|some|several|<NUM>)\s+(?:small\s+|minor\s+)?(?:claims?|accidents?|losses)\b'
+        - '\bclaims? (?:history|record)\b'

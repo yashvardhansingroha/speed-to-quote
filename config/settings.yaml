@@ -1,0 +1,24 @@
+# General settings. All timestamps in the project are naive local "wall clock" times.
+
+# Fixed "now" for all synthetic data and every KPI, so results are reproducible.
+reference_now: "2026-11-02T09:00:00"
+
+# Synthetic data
+synthetic:
+  operational_seed: 2026
+  operational_count: 250
+  eval_seed: 7001
+  eval_count: 80
+  history_days: 120          # synthetic inquiries are spread over this many days before reference_now
+
+# A message shorter than this is routed to human review instead of being scored.
+min_message_chars: 20
+min_message_words: 4
+
+# A message longer than this is NOT analysed automatically (not sent to the LLM either): it goes to human review.
+# Real inquiries are a few hundred characters; this keeps run time and API cost bounded.
+max_message_chars: 10000
+
+# A quote-request is "mature" (counted in the quote-to-bound rate) once it is at least this old.
+# (Used by the KPI calculations in src/analytics.)
+mature_cohort_days: 45

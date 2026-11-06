@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Operational priority score (0-100) = urgency + deadline + waiting + follow-up.
+#
+# This measures how soon a HUMAN should look at the inquiry. It is NOT a prediction of
+# conversion, deal size or customer quality. No personal or protected attribute is used.
+#
+# The four max_points values add up to exactly 100 (checked when the file is loaded).
+# Each factor carries a plain-English "rationale"; the README reproduces them.
+# ---------------------------------------------------------------------------
+version: 1
+
+urgency:
+  max_points: 25
+  points: {high: 25, medium: 12, low: 0}
+  rationale: >
+    The customer's own stated urgency (e.g. "this week", "ASAP") is the clearest signal of how
+    they want to be treated, but it is self-reported and cheap to claim, so it carries less
+    weight than a verifiable deadline.
+
+deadline:
+  max_points: 40
+  # The first tier whose max_days >= days-until-deadline applies. A deadline already in the
+  # past (e.g. lapsed policy) falls into the first tier.
+  tiers:
+    - {max_days: 7, points: 40}
+    - {max_days: 14, points: 35}
+    - {max_days: 30, points: 30}
+    - {max_days: 60, points: 18}
+    - {max_days: 90, points: 8}
+  beyond_tiers_points: 0
+  # A deadline that passed up to this many days ago (e.g. a lapsed policy) still gets the first-tier points.
+  # Older than that the lead is probably stale or already handled elsewhere: 0 points, and the reason
+  # says so, so a person can confirm it is still relevant instead of it topping the inbox forever.
+  lapsed_window_days: 30
+  rationale: >
+    A concrete date (policy expiry, requested callback) is the most objective urgency signal and
+    the biggest driver of lost time: a lapse in coverage is costly to the customer, and a
+    complex line needs lead time to market. It therefore has the largest weight, stepped
+    rather than linear so that "this week" is clearly above "next month". A lapse older than
+    lapsed_window_days no longer adds points: it is probably stale.
+
+waiting:
+  max_points: 20
+  full_points_at_hours: 48     # linear ramp from 0 points at 0h to max_points at this many hours
+  rationale: >
+    Speed is the brokerage's differentiator, so an inquiry nobody has answered gets more
+    priority the longer it waits. It ramps linearly and stops growing after 48h so that one
+    very old message cannot swamp everything else. Only applies while there has been no first response.
+
+followup:
+  max_points: 15
+  points: {overdue: 15, due: 8, none: 0}
+  due_window_hours: 24         # an open follow-up task due within this many hours counts as "due"
+  rationale: >
+    A promised follow-up that is overdue is a broken commitment to a customer already in the
+    funnel; one that is due soon should be handled before it becomes overdue. It has a smaller
+    weight because it only applies to inquiries that have already had a first response.

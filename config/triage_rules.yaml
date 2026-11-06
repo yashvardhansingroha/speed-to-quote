@@ -1,0 +1,81 @@
+# ---------------------------------------------------------------------------
+# Keyword rules for the OFFLINE rules baseline (intent, urgency, business description).
+# Each rule is {re: <regex, case-insensitive>, w: <weight>}. For intent, the weights of all
+# matching rules are summed per intent; the highest total wins. Ties are broken by
+# intent_tie_break (first listed wins). No match at all => "unclear".
+# ---------------------------------------------------------------------------
+
+intent_tie_break:
+  - renewal_or_replacement
+  - new_quote
+  - follow_up
+  - document_or_info_provided
+  - coverage_question
+  - existing_policy_service
+
+intent_rules:
+  new_quote:
+    - {re: '\bquotes?\b', w: 1}
+    - {re: '\b(?:need|want|looking (?:for|to get)|get|seeking|require)\b[^.!?\n]{0,25}\b(?:insurance|coverage|a policy)\b', w: 2}
+    - {re: '\bnew (?:authority|venture|company|business|policy|truck)\b', w: 1}
+    - {re: '\bshop(?:ping)?\s+for\b[^.!?\n]{0,25}\b(?:insurance|coverage)', w: 2}
+    - {re: '\b(?:starting (?:up )?(?:a |my |our )?(?:new )?(?:trucking|hauling)|launching|just (?:got|started|opened)|got (?:our|my) (?:new )?authority)\b', w: 2}
+    - {re: '\b(?:insure|insuring)\s+(?:my|our|the|these|\d+|a|an)\b', w: 1}
+    - {re: '\b(?:pricing|what would it cost|how much (?:would|will|does))\b', w: 1}
+    - {re: '\b(?:price|proposal|options)\s+(?:for|on)\b', w: 1}
+  renewal_or_replacement:
+    - {re: '\b(?:expires?|expiring|expiration|expired|renewal|renew|renews|up for renewal|runs? out|lapses?|lapsing)\b', w: 2}
+    - {re: '\b(?:switch(?:ing)?|replace|replacing|shop(?:ping)?\s+(?:it\s+)?around|shop(?:ping)? the market|new carrier|different (?:carrier|insurer|agent|broker))\b', w: 2}
+    - {re: '\b(?:non[- ]?renew\w*|cancell?ed (?:us|our)|dropped (?:us|me)|premium\w* (?:increase|hike|went up))\b', w: 2}
+    - {re: '\b(?:policy|coverage|insurance)\s+(?:ends|is ending|will end)\b', w: 2}
+    - {re: '\banother (?:carrier|insurer|insurance company|broker|agent)\b', w: 2}
+    - {re: '\brates?\s+(?:went|going|jumped|increased|are|is)\s+(?:up|too high|through the roof)\b', w: 1}
+  coverage_question:
+    - {re: '\b(?:do (?:i|we) need|does (?:my|our|a|the)\b|is (?:it|that|this) (?:covered|required)|am i required|are we required|what(?:\x27s| is| are) (?:the )?(?:difference|minimum|required|covered)|can (?:you|someone) explain|explain)\b', w: 3}
+    - {re: '\b(?:is|are|would|will|does|do|can)\b[^.?!\n]{0,40}\bcovered\b', w: 3}
+    - {re: '\b(?:question|wondering|curious|not sure (?:if|whether|what))\b', w: 1}
+    - {re: '\b(?:what (?:is|are|does)|how (?:do|does))\b', w: 1}
+  document_or_info_provided:
+    - {re: '\b(?:attached|attaching|attachment|enclosed|see attached|find attached)\b', w: 2}
+    - {re: '\b(?:here (?:is|are)|here\x27s|sending (?:over|you)|as (?:requested|you asked)|per your (?:request|email)|you (?:asked|requested) (?:for|me)|you asked us)\b', w: 2}
+  follow_up:
+    - {re: '\b(?:following up|follow up|checking in|circling back|touching base|any (?:update|news|word)|haven\x27t heard|have not heard|no response|didn\x27t hear|still waiting|bumping|second (?:email|message|time)|reaching out again|tried (?:calling|reaching))\b', w: 3}
+  existing_policy_service:
+    - {re: '\b(?:certificates? of insurance|certificates?|COI|proof of insurance|insurance cards?|id cards?|policy (?:number|no\.?|#)|add(?:ing)? (?:a |an |another )?(?:new )?(?:driver|truck|vehicle|trailer|unit|additional insured)|remove (?:a |the )?(?:driver|truck|vehicle|trailer)|endorsement|change (?:of )?address|update (?:our|my) (?:address|info|mailing)|cancel (?:my|our|the) policy|invoice|make a payment|billing)\b', w: 3}
+    - {re: '\b(?:file|report|filing)\s+(?:a\s+)?claim\b|\bclaim\s+(?:number|#)\b|\bwe had an accident\b', w: 3}
+
+# --- Urgency ---------------------------------------------------------------
+# high  : any high pattern, OR stated deadline <= high_within_days days away (or already past)
+# medium: any medium pattern, OR stated deadline <= medium_within_days days away
+# low   : any low pattern (only if not high/medium)
+# otherwise: default_urgency for the inferred intent
+urgency_rules:
+  # Time words like "today" only signal urgency when used as a request/need, not as history
+  # ("we bought a truck today"). Matches of this pattern must pass the same context test as deadlines.
+  context_sensitive: '\b(?:today|tonight|tomorrow|this week|next week|this month|next month)\b'
+  high_within_days: 14
+  medium_within_days: 45
+  high:
+    - '\b(?:asap|a\.s\.a\.p|urgent\w*|immediately|right away|emergency|today|tonight|tomorrow|this week|as soon as possible|lapsed|expired|no coverage|uninsured)\b'
+    - '\bcancell?ed\s+(?:us|our|effective)\b'
+    - '\b(?:can\x27t|cannot|unable to)\s+(?:haul|run|move)\b'
+    - '\btrucks?\s+(?:is|are)\s+(?:sitting|parked|grounded)\b'
+    - '\b(?:by|before)\s+(?:end of day|eod|the weekend|friday)\b'
+  medium:
+    - '\b(?:soon|next (?:week|month)|few weeks|couple (?:of )?weeks|end of (?:the )?month|this month|when you (?:get a chance|can))\b'
+    - '\bin\s+(?:\d+|two|three|four|a few)\s+weeks?\b'
+  low:
+    - '\b(?:no rush|not in a hurry|no hurry|whenever|just (?:looking|exploring|curious|checking|researching|shopping)|exploring|researching|down the road|in a few months|next year|later this year|eventually|planning ahead|thinking about|considering|someday)\b'
+  default_urgency:
+    new_quote: medium
+    renewal_or_replacement: medium
+    follow_up: medium
+    document_or_info_provided: medium
+    coverage_question: low
+    existing_policy_service: low
+    unclear: low
+
+# --- Business description (core field, rules baseline) ------------------------
+business_description_patterns:
+  - '\b(?:we|i)\s+(?:run|operate|own|have|haul|are|am|do)\b(?=[^.!?\n]{0,120}\b(?:truck\w*|haul\w*|freight|fleet|carrier|tractor\w*|drivers?|owner[- ]operator|logistics|dump|flatbed|reefer|trailers?|deliver\w*|transport\w*)\b)[^.!?\n]{0,120}'
+  - '\b(?:owner[- ]operator|small (?:trucking |hauling )?(?:company|fleet|outfit)|family[- ]owned|trucking (?:company|business|outfit)|hauling (?:company|business)|(?:dump|flatbed|reefer|box) truck (?:company|business|operation))\b[^.!?\n]{0,100}'

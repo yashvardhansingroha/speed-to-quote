@@ -1,0 +1,4 @@
+* text=auto
+# Evaluation data is compared byte-for-byte by the tests: never rewrite its line endings.
+eval/*.csv -text
+eval/*.json -text
