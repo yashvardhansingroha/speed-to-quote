@@ -19,8 +19,8 @@ delay is the product.
 
 An engine that helps a **human broker** turn an unstructured trucking-insurance inquiry into a **structured, reviewable
 submission record**, ranked by operational urgency, with a **follow-up draft a human approves**. This repository contains
-the back end: extraction, scoring, drafting and approval workflow, analytics, evaluation, a synthetic-data generator and
-a command-line demo. It has no graphical front end yet (see [Using the engine from a user interface](#using-the-engine-from-a-user-interface)).
+both the back-end engine and a four-page Streamlit user interface (see [User interface](#user-interface) and
+[Using the engine from a user interface](#using-the-engine-from-a-user-interface)).
 
 | Package | What it does |
 |---|---|
@@ -32,6 +32,7 @@ a command-line demo. It has no graphical front end yet (see [Using the engine fr
 | `src/evaluation` | Export of 80 unlabeled evaluation messages, label validation, a cache of LLM answers, metrics and failure cases. |
 | `src/data_generation` | Reproducible synthetic inquiries with consistent event histories. |
 | `config/` | The checklist, priority weights and rules patterns as YAML, so another insurance line can be added without code changes. |
+| `app/` + `streamlit_app.py` | Four-page Streamlit front end: Inquiry Triage, Submission Review, Operations Overview, and Model Evaluation. |
 
 Without an API key everything runs in **offline mode** (rules baseline), and the system never crashes because the LLM is
 unavailable.
@@ -61,8 +62,8 @@ flowchart LR
     P --> O[Priority inbox, KPIs, insights]
 ```
 
-No agent frameworks and no paid infrastructure: Python, SQLite, Pandas, Pydantic, Pytest, and a plain `requests` client
-for any OpenAI-compatible API.
+No agent frameworks and no paid infrastructure: Python, SQLite, Pandas, Pydantic, Plotly, Streamlit, Pytest, and a plain
+`requests` client for any OpenAI-compatible API.
 
 ### How extraction stays honest
 
@@ -167,6 +168,33 @@ is to be filled from that output, not before.
 
 **This sample is small (80 examples), so any metric is indicative only.**
 
+## User interface
+
+Run the four-page Streamlit interface from the repository root:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+On first launch, if `data/speed_to_quote.db` does not exist, the app builds the deterministic 250-inquiry synthetic
+database automatically.
+
+**Environment variables (all optional):**
+
+* `GEMINI_API_KEY` (or `LLM_API_KEY`), `LLM_BASE_URL`, `LLM_MODEL`, `LLM_TIMEOUT_SECONDS`: configure the OpenAI-compatible
+  LLM client. Without a key the UI shows an `Offline mode: rules-based` banner and runs entirely offline.
+* `STQ_FORCE_OFFLINE=1`: force offline rules-based mode even when an API key is present.
+* `STQ_DB_PATH`: override the SQLite database path (default `data/speed_to_quote.db`).
+* `STQ_EVAL_DIR`: override the evaluation directory (default `eval/`).
+
+**Deploying to Streamlit Community Cloud:**
+
+1. Push the repository to GitHub and select `streamlit_app.py` as the main file path.
+2. Add `GEMINI_API_KEY` (and optional `LLM_*` settings) in the app's **Secrets** settings (see
+   `.streamlit/secrets.toml.example`).
+3. SQLite storage on Community Cloud is ephemeral and shared across all visitors: **do not paste real customer or
+   personal information.**
+
 ## Using the engine from a user interface
 
 The functions a front end needs already exist and are covered by tests:
@@ -188,14 +216,15 @@ and blank lines); show an "offline mode" notice when no LLM is in use; and say p
 
 ## Testing
 
-`python -m pytest` runs 517 tests covering: database integrity and event-sequence validity; Pydantic validation and
+`python -m pytest` runs 534 tests covering: database integrity and event-sequence validity; Pydantic validation and
 malformed JSON; evidence-quote and value verification; completeness including not-applicable handling; the priority formula
 and config-loaded weights; draft approve / reject / save persisting to the audit log; KPI maths (medians, P90, zero
 denominators, open inquiries with no response); empty or very short input and behaviour with no API key; schema migration;
-the evaluation export, label validation, metrics with known answers and the LLM cache; and an edge-case suite (hostile and
+the evaluation export, label validation, metrics with known answers and the LLM cache; an edge-case suite (hostile and
 odd input, size limits, concurrent writers, label files saved with different spreadsheet settings, config validation, many
-wordings of fleet sizes, states, dates and urgency, and inbox speed). Tests that need labels use temporary folders and never
-touch `eval/`.
+wordings of fleet sizes, states, dates and urgency, and inbox speed); and the Streamlit UI (`AppTest` coverage across all
+four pages, including the awaiting-labels state of the evaluation page). Tests that need labels use temporary folders and
+never touch `eval/`.
 
 ## Limitations
 
@@ -222,6 +251,7 @@ pip install -r requirements.txt
 python -m pytest                                    # run the tests
 python -m src.data_generation.build_database        # (re)build data/speed_to_quote.db (250 synthetic inquiries)
 python -m src.demo_cli "Hi, we run 12 trucks in Texas and Oklahoma. Our insurance expires next month and we want a quote this week."
+streamlit run streamlit_app.py                      # launch the four-page web UI
 ```
 
 **LLM (optional).** Copy `.env.example` to `.env` and set `GEMINI_API_KEY`. `LLM_BASE_URL` and `LLM_MODEL` point the client
@@ -240,6 +270,7 @@ python -m src.evaluation.run_eval --report  # print the evaluation status (no AP
 
 ```
 speed-to-quote/
+  app/                   Streamlit front end (pages, charts, state, escaping helpers)
   config/                checklist, priority weights, rules baseline patterns, settings
   data/                  generated SQLite database (git-ignored, rebuilt on demand)
   eval/                  unlabeled eval set, labelling guide, cached LLM answers (+ your eval_labeled.csv)
@@ -251,14 +282,14 @@ speed-to-quote/
     drafting/            draft generation + safety scan, approval workflow, audit log
     analytics/           KPIs, priority inbox, insights
     evaluation/          export, label validation, cache, metrics, report
-  tests/                 pytest suite
+  tests/                 pytest suite (engine + Streamlit AppTest UI suite)
   docs/                  founder memo
+  streamlit_app.py       Streamlit entry point
 ```
 
 ## Future work
 
 * Label the 80 messages, report the real comparison, then use the failure cases to improve the rules and the prompt.
-* A user interface on top of the functions listed above.
 * Evaluate on a small set of real (anonymised, consented) inquiries before trusting any number.
 * Persistent storage and per-user sign-in for a real deployment; email intake instead of paste.
 * A second insurance line as another checklist YAML file (the code is already config-driven).

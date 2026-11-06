@@ -1,7 +1,8 @@
-pandas>=2.0
-numpy>=1.26
-pydantic>=2.5
-PyYAML>=6.0
+pyyaml>=6.0
+pydantic>=2.6
 requests>=2.31
-python-dotenv>=1.0
+pandas>=2.2
 pytest>=8.0
+python-dotenv>=1.0
+streamlit>=1.50
+plotly>=5.20

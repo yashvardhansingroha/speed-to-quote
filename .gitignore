@@ -1,11 +1,30 @@
-.env
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+*$py.class
+
+# Virtual environments
 .venv/
-# The demo database is regenerated deterministically (python -m src.data_generation.build_database)
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.streamlit/secrets.toml
+
+# Generated SQLite databases (rebuilt on demand: python -m src.data_generation.build_database)
 data/*.db
 data/*.db-journal
-data/*.db-wal
 data/*.db-shm
-# Labelled evaluation data is yours; the unlabeled export and LLM cache are committed on purpose.
+data/*.db-wal
+
+# Pytest and coverage caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -80,7 +80,7 @@ def test_secrets_are_never_committed_and_the_example_is_only_a_template():
 
 
 def test_the_engine_has_no_user_interface_dependency():
+    # The engine in src/ must stay importable without a UI framework.
     for path in (ROOT / "src").rglob("*.py"):
         text = path.read_text(encoding="utf-8")
         assert "streamlit" not in text.lower(), path
-    assert "streamlit" not in read("requirements.txt").lower()
