@@ -56,7 +56,8 @@ def test_readme_has_every_required_section_and_the_disclaimers():
         assert heading in readme, heading
     assert "```mermaid" in readme and "SYNTHETIC / DEMONSTRATION DATA" in readme
     assert "does **not** represent universal" in readme and "ready for human review, not ready for a bindable quote" in readme
-    assert "small (80 examples)" in readme and "awaiting labels" in readme.lower()
+    assert "small (80 examples)" in readme
+    assert "awaiting labels" not in readme.lower(), "the results table must hold real numbers, not placeholders"
 
 
 def test_readme_distinguishes_malformed_output_from_accuracy_and_describes_the_routing():

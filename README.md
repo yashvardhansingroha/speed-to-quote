@@ -144,8 +144,9 @@ missing-field precision and recall (positive class = field is missing or unclear
 and median latency per inquiry, reported both as API-call time and as the full application path. LLM answers are cached in
 `eval/llm_cache.json`, so results are reproducible and building the report never calls the API.
 
-**Results so far.** The labels do not exist yet, so **no accuracy figure is reported here: nothing is estimated.** What has
-been measured, with no labels needed, from one cached run of `gemini-3.5-flash-lite`:
+**Results.** The 80 messages were labelled by hand by one person (the author). Numbers below come from
+`python -m src.evaluation.run_eval --report` on those labels and one cached run of `gemini-3.5-flash-lite`. First, what is
+measured without any labels:
 
 | Measurement | Result |
 |---|---|
@@ -156,17 +157,33 @@ been measured, with no labels needed, from one cached run of `gemini-3.5-flash-l
 | Median full-pipeline latency per inquiry (API call + validation and evidence checks, or rules time when rules answer) | about 2.9 s |
 
 Evaluation mirrors the app exactly: short messages go to rules, API errors and malformed answers fall back to rules, and a
-test confirms that for all 80 messages the evaluation's prediction equals what the app's own extraction returns. Once
-`eval/eval_labeled.csv` is in place, `python -m src.evaluation.run_eval --report` produces the comparison; the table below
-is to be filled from that output, not before.
+test confirms that for all 80 messages the evaluation's prediction equals what the app's own extraction returns.
+
+Against the hand labels (80 messages; the same table, with confusion matrices and failure cases, is on the Model Evaluation
+page):
 
 | Metric | LLM pipeline | Rules baseline |
 |---|---|---|
-| Intent accuracy / macro-F1 | *awaiting labels* | *awaiting labels* |
-| Urgency accuracy / macro-F1 | *awaiting labels* | *awaiting labels* |
-| Missing-field precision / recall | *awaiting labels* | *awaiting labels* |
+| Intent accuracy | 88.8% (71 of 80) | 88.8% (71 of 80) |
+| Intent macro-F1 | 81.1% | 79.7% |
+| Urgency accuracy | 55.0% (44 of 80) | 67.5% (54 of 80) |
+| Urgency macro-F1 | 55.3% | 67.3% |
+| Missing-field precision (positive = missing or unclear) | 97.2% (636 of 654 flagged) | 93.0% (640 of 688 flagged) |
+| Missing-field recall | 98.9% (636 of 643) | 99.5% (640 of 643) |
+| Median latency per inquiry | about 2.9 s | about 1.7 ms |
 
-**This sample is small (80 examples), so any metric is indicative only.**
+How to read this:
+
+* **The LLM pipeline did not beat the rules baseline overall.** Intent accuracy is identical; the LLM is slightly better on
+  macro-F1 and on missing-field precision (fewer fields wrongly flagged as missing: 18 against 48 false alarms); the rules
+  baseline is clearly better on urgency, by 10 messages out of 80.
+* **Missing-field recall looks high partly because most cells are positive.** 643 of the 960 field cells (67%) are labelled
+  missing or unclear, so a system that flagged every field would already score 100% recall and 67% precision. Precision and
+  the false-alarm counts are the more informative numbers here.
+* **The rules baseline and the message generator were written together**, so its scores are probably higher than they would
+  be on real inquiries, and the LLM was not tuned on this set. The comparison therefore favours the rules baseline.
+* **This sample is small (80 examples), with one labeller and one cached model run.** A difference of a few points is
+  within noise, so treat every figure as indicative only.
 
 ## User interface
 

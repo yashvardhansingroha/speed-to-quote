@@ -154,10 +154,13 @@ def test_page4_invalid_labels_file_shows_validation_errors(eval_env: Path) -> No
 
 def test_page4_with_temp_labels_and_cache_shows_comparison_heatmaps_and_failures(eval_env: Path) -> None:
     checklist = load_checklist()
+    real_labels = REAL_EVAL_DIR / "eval_labeled.csv"
+    real_before = real_labels.read_bytes() if real_labels.exists() else None
+
     _ensure_complete_temp_cache(eval_env, checklist)
     lab_path = _write_temp_labeled_csv(eval_env, checklist)
     assert lab_path.parent == eval_env
-    assert not (REAL_EVAL_DIR / "eval_labeled.csv").exists()
+    assert lab_path.resolve() != real_labels.resolve()
 
     at = AppTest.from_file(APP_PATH, default_timeout=30)
     at.run()
@@ -184,3 +187,7 @@ def test_page4_with_temp_labels_and_cache_shows_comparison_heatmaps_and_failures
     # One comparison table, two per-field tables, then one mismatch table per failure case (5 to 8 cases)
     n_failure_dfs = len(at.dataframe) - 3
     assert 5 <= n_failure_dfs <= 8
+
+    # The test must never touch the real labels file (present or absent).
+    real_after = real_labels.read_bytes() if real_labels.exists() else None
+    assert real_after == real_before
